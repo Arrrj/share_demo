@@ -160,3 +160,15 @@ SIMPLE_JWT = {
     'SIGNING_KEY': SECRET_KEY,
     'AUTH_HEADER_TYPES': ('Bearer',)
 }
+
+SWAGGER_SETTINGS = {
+    'USE_SESSION_AUTH': False,  # Disable session auth
+    'SECURITY_DEFINITIONS': {
+        'Bearer': {
+            'type': 'apiKey',
+            'name': 'Authorization',
+            'in': 'header',
+            'description': 'Enter token as: Bearer <access_token>',
+        }
+    }
+}
