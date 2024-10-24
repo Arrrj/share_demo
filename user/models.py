@@ -24,15 +24,10 @@ from user.managers import CustomUserManager
     
 
 class User(AbstractBaseUser, PermissionsMixin):
-    email = models.EmailField(_("email address"), unique=True)    
-    USER_CHOICES = (
-        ('candidate', 'candidate'),
-        ('recruiter', 'recruiter'),
-    )
-    user_role = models.CharField(max_length=10, choices=USER_CHOICES)
+    email = models.EmailField(_("email address"), unique=True)  
+    user_role = models.CharField(max_length=10)
     otp = models.CharField(max_length=6, blank=True, null=True)
     otp_created_at = models.DateTimeField(auto_now_add=True)
-    email_verification = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     date_joined = models.DateTimeField(auto_now_add=True)

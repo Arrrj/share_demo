@@ -3,20 +3,18 @@ from rest_framework import serializers
 from user.models import User
 
 
-class UserSignupSerializer(serializers.ModelSerializer):
+class EmailRegistrationSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+
+
+
+class OtpVerificationSerializer(serializers.Serializer):
+    otp = serializers.CharField()
+
+class SetPasswordSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = [
-            'email',
-            'user_role',
-            'password',
-        ]
-
-
-class EmailVerifySerializer(serializers.Serializer):
-    email = serializers.CharField()
-    otp = serializers.CharField()
-    
+        fields = ['password']
 
 class UserLoginSerializer(serializers.Serializer):
     email = serializers.CharField()

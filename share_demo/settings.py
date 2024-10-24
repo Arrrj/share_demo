@@ -127,7 +127,7 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 
-MEDIA_URL = '/media/'  # URL for media files
+MEDIA_URL = '/media/' 
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 # Default primary key field type
@@ -162,7 +162,7 @@ SIMPLE_JWT = {
 }
 
 SWAGGER_SETTINGS = {
-    'USE_SESSION_AUTH': False,  # Disable session auth
+    'USE_SESSION_AUTH': False, 
     'SECURITY_DEFINITIONS': {
         'Bearer': {
             'type': 'apiKey',

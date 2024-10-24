@@ -6,6 +6,7 @@ from rest_framework import status
 from rest_framework.views import APIView
 from django.contrib.auth.hashers import make_password
 from rest_framework.response import Response
+from django.utils.dateparse import parse_datetime  
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from utils.otp_utils import OtpUtils
@@ -13,19 +14,20 @@ from utils.email_utils import EmailUtils
 
 
 from user.api.v1.serializers.auth_serializer import (
-    UserSignupSerializer,
-    EmailVerifySerializer,
+    EmailRegistrationSerializer,
+    OtpVerificationSerializer,
     UserLoginSerializer,
+    SetPasswordSerializer,
 )
 from user.models import User
 
 
-class UserSignup(APIView):
-    serializer_class = UserSignupSerializer
+class EmailRegistration(APIView):
+    serializer_class = EmailRegistrationSerializer
 
     @swagger_auto_schema(
         operation_description="User registration",
-        request_body=UserSignupSerializer,
+        request_body=EmailRegistrationSerializer,
         responses={
             201: openapi.Response("User Registered Successfully"),
             400: openapi.Response(
@@ -44,51 +46,42 @@ class UserSignup(APIView):
             ),
         },
     )
+    
     def post(self, request):
-        """
-        Create a new user.
-        """
-
-        serializer = UserSignupSerializer(data=request.data)
+        serializer = EmailRegistrationSerializer(data=request.data)
         if serializer.is_valid():
-            password = make_password(serializer.validated_data["password"])
             email = serializer.validated_data["email"]
-            user_role = serializer.validated_data["user_role"]
 
             if User.objects.filter(email=email).exists():
                 return Response(
                     {"error": "A user with this username already exists."},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-            user_obj, created = User.objects.get_or_create(
-                email=email, password=password
+
+            otp = OtpUtils.six_digit_otp()
+
+            EmailUtils.otp_verification_mail(otp=otp, email=email)
+        
+            request.session['email'] = email
+            request.session['otp'] = otp
+            request.session['otp_created_at'] = timezone.now().isoformat()
+
+            # print(request.session.__dict__)
+            
+            return Response(
+                {"message": "Otp Send to user mail successfully"},
+                status=status.HTTP_201_CREATED,
             )
-            if created:
-                otp = OtpUtils.six_digit_otp()
-                user_obj.otp = otp
-                user_obj.user_role = user_role
-                user_obj.otp_created_at = timezone.now()
-                user_obj.save()
-
-                EmailUtils.otp_verification_mail(otp=otp, email=email)
-
-                return Response(
-                    {"message": "User Registered Successfully"},
-                    status=status.HTTP_201_CREATED,
-                )
-            else:
-                return Response(
-                    {"message": "User ALready Exist"}, status=status.HTTP_409_CONFLICT
-                )
+      
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class OtpVerification(APIView):
-    serializer_class = EmailVerifySerializer
+    serializer_class = OtpVerificationSerializer
 
     @swagger_auto_schema(
         operation_description="Verify OTP for email",
-        request_body=EmailVerifySerializer,
+        request_body=OtpVerificationSerializer,
         responses={
             200: openapi.Response("OTP Verification Successful"),
             400: openapi.Response(
@@ -111,36 +104,88 @@ class OtpVerification(APIView):
         """
         Verify the OTP for the specified email.
         """
-        serializer = EmailVerifySerializer(data=request.data)
+        serializer = OtpVerificationSerializer(data=request.data)
 
         if serializer.is_valid():
-            email = serializer.validated_data["email"]
-            otp = serializer.validated_data["otp"]
 
-            user_obj = User.objects.filter(email=email).first()
+            email = request.session.get('email')
+            otp = request.session.get('otp')
+            otp_created_at_str = request.session.get('otp_created_at')
 
-            if not user_obj:
+            if not email:
+                return Response({"message": "Email not found in session"}, status=status.HTTP_404_NOT_FOUND)
+
+            if not otp:
                 return Response(
                     {"message": "Invalid OTP"}, status=status.HTTP_404_NOT_FOUND
                 )
-            time_difference = timezone.now() - user_obj.otp_created_at
+            
+            otp_created_at = parse_datetime(otp_created_at_str)
+
+            if otp_created_at is None:
+                return Response({"message": "OTP creation time not found"}, status=status.HTTP_400_BAD_REQUEST)
+
+            if timezone.is_naive(otp_created_at):
+                otp_created_at = timezone.make_aware(otp_created_at)
+
+            time_difference = timezone.now() - otp_created_at
             ten_minutes = timedelta(minutes=10)
 
             if time_difference > ten_minutes:
                 return Response(
                     {"message": "OTP has expired"}, status=status.HTTP_400_BAD_REQUEST
                 )
-            if user_obj.otp != otp:
+            if otp != serializer.validated_data.get('otp'):
                 return Response(
                     {"message": "OTP does not match"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-            user_obj.email_verification = True
-            user_obj.save()
             return Response(
                 {"message": "OTP Verification Sussessful"}, status=status.HTTP_200_OK
             )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class SetPassword(APIView):
+    @swagger_auto_schema(
+       operation_description="Set user password after email verification",
+        request_body=SetPasswordSerializer,
+        responses={
+            200: openapi.Response(
+                "Password set successfully.",
+            ),
+            400: openapi.Response(
+                "Error in setting password.",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        "error": openapi.Schema(type=openapi.TYPE_STRING, description="Error message explaining what went wrong"),
+                    }
+                )
+            )
+        }
+    )
+
+    def post(self, request):
+        email = request.session.get('email')
+
+        if not email:
+            return Response({'error': 'Email not found in session.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+
+        serializer = SetPasswordSerializer(data=request.data)
+        if serializer.is_valid():
+            user = User(email=email)
+            password = serializer.validated_data['password']
+            user.password = make_password(password)
+            user.save()
+
+            request.session.flush()
+
+            return Response({'message': 'Password set successfully.'}, status=status.HTTP_200_OK)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 
 class Login(APIView):
