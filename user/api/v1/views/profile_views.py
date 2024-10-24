@@ -6,7 +6,7 @@ from drf_yasg.utils import swagger_auto_schema
 from rest_framework.response import Response
 
 
-from user.api.v1.serializers.profile_serializer import CompanyProfileSerializer
+from user.api.v1.serializers.profile_serializer import CompanyProfileSerializer, CompanyProfileResponseSerializer
 from user.models import CompanyProfile
 
 
@@ -53,14 +53,15 @@ class CompanyAPIView(APIView):
             )
         try:
             company_profile = CompanyProfile.objects.get(user=request.user)
-            serializer = CompanyProfileSerializer(company_profile)
+            serializer = CompanyProfileResponseSerializer(company_profile)
             return Response(serializer.data, status=status.HTTP_200_OK)
         except CompanyProfile.DoesNotExist:
             return Response({"message": "Profile not found"}, status=status.HTTP_404_NOT_FOUND)
-        
+
+
     @swagger_auto_schema(
         operation_description="Update the authenticated user's company profile",
-        request_body=CompanyProfileSerializer,
+        request_body=CompanyProfileResponseSerializer,
         responses={
             200: "Profile Updated Successfully",
             400: "Invalid data",

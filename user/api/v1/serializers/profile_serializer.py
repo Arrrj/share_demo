@@ -14,3 +14,9 @@ class CompanyProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = CompanyProfile
         fields = '__all__'
+
+class CompanyProfileResponseSerializer(serializers.ModelSerializer):
+    user = UserSerializer(read_only=True)
+    class Meta:
+        model = CompanyProfile
+        fields = ['name','user','company_name','company_mail','contact_number']
