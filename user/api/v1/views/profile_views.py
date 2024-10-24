@@ -8,9 +8,11 @@ from rest_framework.response import Response
 
 from user.api.v1.serializers.profile_serializer import CompanyProfileSerializer, CompanyProfileResponseSerializer
 from user.models import CompanyProfile
+from user.permissions import IsRecruiter
 
 
 class CompanyAPIView(APIView):
+    permission_classes = [IsRecruiter]
 
     @swagger_auto_schema(
         operation_description="Create a company profile",
@@ -21,7 +23,7 @@ class CompanyAPIView(APIView):
         """
         View to handle company profile creation.
         """
-        if not request.user.is_authenticated:
+        if request.user.user_role != "recruiter":
             return Response(
                 {"message": "Authentication required"},
                 status=status.HTTP_401_UNAUTHORIZED,
