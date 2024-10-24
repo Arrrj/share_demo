@@ -10,5 +10,5 @@ urlpatterns = [
     path("verify-otp/", OtpVerification.as_view(), name="verify_otp"),
     path("set-password/", SetPassword.as_view(), name="set_password"),
     path("login/", Login.as_view(), name="login"),
-    path("company-profile/", CompanyAPIView.as_view(), name="create-profile"),
+    path("company-profile/", CompanyAPIView.as_view(), name="create_profile"),
 ]

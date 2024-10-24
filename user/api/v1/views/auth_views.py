@@ -178,6 +178,7 @@ class SetPassword(APIView):
             user = User(email=email)
             password = serializer.validated_data['password']
             user.password = make_password(password)
+            user.user_role = 'recruiter'
             user.save()
 
             request.session.flush()
