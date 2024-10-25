@@ -23,11 +23,6 @@ class CompanyAPIView(APIView):
         """
         View to handle company profile creation.
         """
-        if request.user.user_role != "recruiter":
-            return Response(
-                {"message": "Authentication required"},
-                status=status.HTTP_401_UNAUTHORIZED,
-            )
         serializer = CompanyProfileSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save(user=request.user)
@@ -47,12 +42,6 @@ class CompanyAPIView(APIView):
     )
 
     def get(self, request):
-
-        if not request.user.is_authenticated:
-            return Response(
-                {"message": "Authentication required"},
-                status=status.HTTP_401_UNAUTHORIZED,
-            )
         try:
             company_profile = CompanyProfile.objects.get(user=request.user)
             serializer = CompanyProfileResponseSerializer(company_profile)
@@ -73,10 +62,6 @@ class CompanyAPIView(APIView):
     )
 
     def put(self, request):
-        
-        if not request.user.is_authenticated:
-            return Response({"message": "Authentication required"}, status=status.HTTP_401_UNAUTHORIZED)
-        
         try:
             company_profile = CompanyProfile.objects.get(user=request.user)
         except CompanyProfile.DoesNotExist:
